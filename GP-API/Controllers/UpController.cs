@@ -2,9 +2,9 @@
 {
     using Microsoft.AspNetCore.Mvc;
 
-    [Route("up")]
-    [Controller]
-    public class UpController : Controller
+    [Route("[controller]")]
+    [ApiController]
+    public class UpController : ControllerBase
     {
         [HttpGet]
         public IActionResult UpStatus()
