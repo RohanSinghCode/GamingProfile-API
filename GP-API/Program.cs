@@ -1,4 +1,6 @@
 using GP_API.Models;
+using GP_API.Repository;
+using GP_API.Repository.Interfaces;
 using EnvironmentName = Microsoft.AspNetCore.Hosting.EnvironmentName;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +15,7 @@ builder.Configuration
     .AddEnvironmentVariables();
 
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
+builder.Services.AddScoped<IUserRepository, UsersRepository>();
 
 var app = builder.Build();
 
