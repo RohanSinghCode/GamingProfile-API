@@ -2,7 +2,7 @@
 {
     using GP_API.Models;
 
-    public interface IUserRepository
+    public interface IUserRepository : IGenericRepository<User>
     {
         /// <summary>
         /// Adds the specified user.

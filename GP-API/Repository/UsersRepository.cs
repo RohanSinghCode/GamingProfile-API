@@ -6,10 +6,11 @@
     using Microsoft.Extensions.Options;
     using System.Data.SqlClient;
 
-    public class UsersRepository : IUserRepository
+    public class UsersRepository : GenericRepository<User>, IUserRepository
     {
 		private readonly IOptions<AppSettings> _appSettings;
         public UsersRepository(IOptions<AppSettings> appSettings)
+			:base(appSettings)
         {
 			_appSettings = appSettings;
         }
