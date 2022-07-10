@@ -7,23 +7,30 @@
     using GP_API.Models.Response;
     using GP_API.Repository.Interfaces;
     using GP_API.Services.Interfaces;
-    using System.Security.Cryptography;
-    using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+    using BCrypt.Net;
     using System;
+    using System.IdentityModel.Tokens.Jwt;
+    using System.Text;
+    using Microsoft.IdentityModel.Tokens;
+    using System.Security.Claims;
+    using Microsoft.Extensions.Options;
+    using GP_API.CustomExcecptions;
 
     public class AuthenticationService : IAuthenticationService
     {
         private readonly IUserRepository _userRepository;
-        public AuthenticationService(IUserRepository userRepository)
+        private readonly AppSettings _appSettings;
+        public AuthenticationService(IUserRepository userRepository, IOptions<AppSettings> appSettings)
         {
             _userRepository = userRepository;
+            _appSettings = appSettings.Value;
         }
 
         public UserResponse Login(LoginRequest loginRequest)
         {
             if (loginRequest == null)
             {
-                throw new ArgumentNullException("loginRequest");
+                throw new ArgumentNullException(nameof(loginRequest));
             }
 
             if (loginRequest.Username == null && loginRequest.Email == null)
@@ -49,39 +56,108 @@
 
             if (user == null)
             {
-                throw new ArgumentException("No user found");
+                throw new InvalidRequestDataException($"{loginRequest.Username} or {loginRequest.Email}");
             }
 
-            // check the password from the login request and from the user object
-            var hashedPassword = GenerateHashPassword(loginRequest.Password);
-            if (user.Passowrd != hashedPassword)
+            if (BCrypt.Verify(loginRequest.Password, user.Passowrd))
             {
-                throw new UnauthorizedAccessException("Passoword");
+                throw new InvalidRequestDataException("password");
             }
+
+            var jwtToken = GenerateJwtToken(user);
+
+            return new UserResponse()
+            {
+                Id = user.Id,
+                AccessToken = jwtToken,
+                Username = user.Username,
+                Email = user.Email,
+                About = user.About,
+                ProfilePicture = user.ProfilePicture,
+                CoverPicture = user.CoverPicture,
+                Name = user.Name,
+            };
         }
 
         public int SignUp(UserRequest userRequest)
         {
-            throw new NotImplementedException();
+            ValidateSignUpRequest(userRequest);
+            var hashedPassword = BCrypt.HashPassword(userRequest.Password);
+            var userId = _userRepository.Add(new User()
+            {
+                Username = userRequest.Username,
+                Name = userRequest.Name,
+                Email = userRequest.Email,
+                Passowrd = hashedPassword,
+                DOB = userRequest.DOB,
+                About = userRequest.About,
+                CoverPicture = userRequest.CoverPicture,
+                ProfilePicture = userRequest.ProfilePicture
+            });
+            return userId;
         }
 
-        private string GenerateHashPassword(string password)
+        private void ValidateSignUpRequest(UserRequest userRequest)
         {
-            byte[] salt = new byte[128 / 8];
-#pragma warning disable SYSLIB0023 // Type or member is obsolete
-            using (var rngCsp = new RNGCryptoServiceProvider())
+            if (string.IsNullOrWhiteSpace(userRequest.Email))
             {
-                rngCsp.GetNonZeroBytes(salt);
+                throw new ArgumentNullException("Email");
             }
-#pragma warning restore SYSLIB0023 // Type or member is obsolete
-            string hashedPassword = Convert.ToBase64String(KeyDerivation.Pbkdf2(
-                password: password,
-                salt: salt,
-                prf: KeyDerivationPrf.HMACSHA256,
-                iterationCount: 100000,
-                numBytesRequested: 256 / 8));
 
-            return hashedPassword;
+            if (string.IsNullOrWhiteSpace(userRequest.Name))
+            {
+                throw new ArgumentNullException("Name");
+            }
+
+            if (string.IsNullOrEmpty(userRequest.Password))
+            {
+                throw new ArgumentNullException("Password");
+            }
+
+            if (userRequest.Password.Length <= 8)
+            {
+                throw new InvalidRequestDataException("password");
+            }
+
+            var groupPredicate = new PredicateGroup()
+            {
+                Operator = GroupOperator.Or,
+                Predicates = new List<IPredicate>
+                {
+                    Predicates.Field<User>(u => u.Email, Operator.Eq, userRequest.Email)
+                }
+            };
+
+            if (!string.IsNullOrEmpty(userRequest.Username))
+            {
+                if (userRequest.Username.Length > 20 || userRequest.Username.Any(ch => (!Char.IsLetterOrDigit(ch) || ch != '.')))
+                {
+                    throw new InvalidRequestDataException("Username");
+                }
+                groupPredicate.Predicates.Add(Predicates.Field<User>(u => u.Username, Operator.Eq, userRequest.Username));
+            }
+
+            var user = _userRepository.GetByPredicate(groupPredicate);
+
+            if (user != null)
+            {
+                throw new UserAlreadyExistException();
+            }
+        }
+
+        private string GenerateJwtToken(User user)
+        {
+            // generate token that is valid for 7 days
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[] { new Claim("userId", user.Id.ToString()) }),
+                Expires = DateTime.UtcNow.AddDays(7),
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
         }
     }
 }

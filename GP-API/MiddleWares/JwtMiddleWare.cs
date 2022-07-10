@@ -19,13 +19,12 @@
 
         public async Task Invoke(HttpContext context,IUserService userService)
         {
-            try
+            var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+            if (token != null)
             {
-                var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
-                if (token != null)
-                    attachUserToContext(context, userService, token);
-                await _requestDelegate(context);
+                attachUserToContext(context, userService, token);
             }
+            await _requestDelegate(context);
         }
 
         private void attachUserToContext(HttpContext context, IUserService userService, string token)
