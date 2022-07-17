@@ -1,5 +1,6 @@
 ﻿namespace GP_API.Controllers
 {
+    using GP_API.CustomAttribute;
     using GP_API.Models.Request;
     using GP_API.Services.Interfaces;
     using Microsoft.AspNetCore.Authorization;
@@ -16,6 +17,7 @@
             _authenticationService = authenticationService;
         }
 
+        [Authorization]
         [HttpPost("login")]
         public IActionResult Login([FromBody]LoginRequest loginRequest)
         {

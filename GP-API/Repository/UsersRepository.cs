@@ -21,6 +21,7 @@
 												Name
 												,Email
 												,Password
+												,Username
 												,DOB
 												,ProfilePicture
 												,CoverPicture
@@ -30,6 +31,7 @@
 												@name
 												,@email
 												,@password
+												,@username
 												,@dob
 												,@profilePicture
 												,@coverPicture
@@ -38,7 +40,15 @@
 								SELECT SCOPE_IDENTITY();";
 			using var connection = new SqlConnection(_appSettings.Value.ConnectionString);
             {
-				return connection.QueryFirst<int>(sql, new { user });
+				return connection.QueryFirst<int>(sql, new { 
+															user.Name, 
+															user.Email, 
+															user.Password, 
+															user.Username, 
+															user.DOB, 
+															user.ProfilePicture, 
+															user.CoverPicture, 
+															user.About  });
             }
 
 		}
@@ -52,6 +62,7 @@
 										,ProfilePicture
 										,CoverPicture
 										,About
+										,Password
 									FROM Users
 									WHERE Id = @id";
 			using var connection = new SqlConnection(_appSettings.Value.ConnectionString);

@@ -59,7 +59,7 @@
                 throw new InvalidRequestDataException($"{loginRequest.Username} or {loginRequest.Email}");
             }
 
-            if (BCrypt.Verify(loginRequest.Password, user.Passowrd))
+            if (!BCrypt.Verify(loginRequest.Password, user.Password))
             {
                 throw new InvalidRequestDataException("password");
             }
@@ -76,6 +76,7 @@
                 ProfilePicture = user.ProfilePicture,
                 CoverPicture = user.CoverPicture,
                 Name = user.Name,
+                DOB = user.DOB,
             };
         }
 
@@ -88,8 +89,8 @@
                 Username = userRequest.Username,
                 Name = userRequest.Name,
                 Email = userRequest.Email,
-                Passowrd = hashedPassword,
-                DOB = userRequest.DOB,
+                Password = hashedPassword,
+                DOB = userRequest.DOB ?? null,
                 About = userRequest.About,
                 CoverPicture = userRequest.CoverPicture,
                 ProfilePicture = userRequest.ProfilePicture
@@ -130,7 +131,7 @@
 
             if (!string.IsNullOrEmpty(userRequest.Username))
             {
-                if (userRequest.Username.Length > 20 || userRequest.Username.Any(ch => (!Char.IsLetterOrDigit(ch) || ch != '.')))
+                if (userRequest.Username.Length > 20 || userRequest.Username.Any(ch => (!(Char.IsLetterOrDigit(ch) || ch != '.'))))
                 {
                     throw new InvalidRequestDataException("Username");
                 }
@@ -139,7 +140,7 @@
 
             var user = _userRepository.GetByPredicate(groupPredicate);
 
-            if (user != null)
+            if (user != null && user.Any())
             {
                 throw new UserAlreadyExistException();
             }

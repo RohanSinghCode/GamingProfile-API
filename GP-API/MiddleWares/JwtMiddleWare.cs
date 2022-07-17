@@ -1,6 +1,7 @@
 ﻿namespace GP_API.MiddleWares
 {
     using GP_API.Models;
+    using GP_API.Repository.Interfaces;
     using GP_API.Services.Interfaces;
     using Microsoft.Extensions.Options;
     using Microsoft.IdentityModel.Tokens;
@@ -17,17 +18,17 @@
             _appSettings = appSettings.Value;
         }
 
-        public async Task Invoke(HttpContext context,IUserService userService)
+        public async Task Invoke(HttpContext context,IUserRepository userRepository)
         {
             var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
             if (token != null)
             {
-                attachUserToContext(context, userService, token);
+                attachUserToContext(context, userRepository, token);
             }
             await _requestDelegate(context);
         }
 
-        private void attachUserToContext(HttpContext context, IUserService userService, string token)
+        private void attachUserToContext(HttpContext context, IUserRepository userRepository, string token)
         {
             try
             {
@@ -44,10 +45,10 @@
                 }, out SecurityToken validatedToken);
 
                 var jwtToken = (JwtSecurityToken)validatedToken;
-                var userId = int.Parse(jwtToken.Claims.First(x => x.Type == "id").Value);
+                var userId = int.Parse(jwtToken.Claims.First(x => x.Type == "userId").Value);
 
                 // attach user to context on successful jwt validation
-                context.Items["User"] = userService.Get(userId);
+                context.Items["User"] = userRepository.Get(userId);
             }
             catch
             {

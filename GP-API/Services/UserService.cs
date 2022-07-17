@@ -32,10 +32,11 @@
                 Id = user.Id,
                 Name = user.Name,
                 Username = user.Username,
+                Email = user.Email,
                 ProfilePicture = user.ProfilePicture,
                 CoverPicture = user.CoverPicture,
                 About = user.About,
-                DOB = user.DOB,
+                DOB = user.DOB ?? null,
             };
         }
     }
